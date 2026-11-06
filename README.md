@@ -4,13 +4,15 @@ Real Google Chrome in a container, driven over the Chrome DevTools Protocol
 (CDP). Two images, one codebase, everything managed in TypeScript — no
 supervisord, no bash entrypoints, no Python.
 
-- **slim** (`latest`) — Chrome headless + CDP and nothing else. No X server,
-  no audio stack, no VNC, no recording code. This is the image for agents /
-  Puppeteer / Playwright / `agent-browser` style automation.
-- **record** (`record`) — slim plus a headed display stack: Xvfb + fluxbox,
-  PulseAudio, VNC/noVNC, and a recording web UI (start/stop captures,
-  list + download recordings, live audio stream). Use this when you want to
-  *watch* the browser or record it.
+- **slim** (`latest`) — **headed** Chrome under Xvfb + CDP and nothing else.
+  No audio stack, no VNC, no recording code. Headed rather than headless
+  because headless is trivially detectable (`HeadlessChrome` in the UA and
+  other tells). The X display is unix-socket only (`-nolisten tcp`) and
+  nothing is listening except CDP — headed costs no exposure. This is the
+  image for agents / Puppeteer / Playwright / `agent-browser` automation.
+- **record** (`record`) — slim plus PulseAudio, VNC/noVNC, and a recording
+  web UI (start/stop captures, list + download recordings, live audio
+  stream). Use this when you want to *watch* the browser or record it.
 
 Both images are built and pushed to GHCR on **every push** by
 [`.github/workflows/build.yml`](.github/workflows/build.yml).
@@ -51,17 +53,20 @@ docker run -d --name stealth-chrome-record --shm-size=2gb \
 
 | Image | GHCR ref | What's in it |
 |-------|----------|--------------|
-| slim | `ghcr.io/kk-spartans/stealth-chrome:latest` | Node 22 + Chrome + the TypeScript supervisor. Headless Chrome exposing CDP. ~350 MB. |
-| record | `ghcr.io/kk-spartans/stealth-chrome:record` | Slim + Xvfb, fluxbox, PulseAudio, ffmpeg, x11vnc, noVNC, and the recording server. Headed Chrome at 1920×1080. |
+| slim | `ghcr.io/kk-spartans/stealth-chrome:latest` | Node 22 + Chrome + Xvfb/fluxbox + the TypeScript supervisor. Headed Chrome (1920×1080) exposing CDP. No audio/VNC/recording. |
+| record | `ghcr.io/kk-spartans/stealth-chrome:record` | Slim + PulseAudio, ffmpeg, x11vnc, noVNC, and the recording server. |
 
 Every push also publishes immutable copies tagged `sha-<commit>` (slim) and
 `record-sha-<commit>` (record).
 
 Why real branded Google Chrome and not Chromium? Google sign-in refuses
 unbranded Chromium builds ("browser not secure"). A persistent profile with
-real Chrome logs in fine with zero stealth patches. Note the slim image runs
-Chrome **headless** (`--headless=new`), which is what CDP automation wants;
-the record image runs it **headed** under Xvfb so you can see/record it.
+real Chrome logs in fine with zero stealth patches. Both images run Chrome
+**headed** under Xvfb: headless Chrome advertises itself (`HeadlessChrome`
+in the user agent, `navigator.webdriver`-adjacent tells, missing window
+chrome), and headed costs nothing here — the display is a local unix socket
+with no VNC attached in the slim image. Set `HEADFUL=0` if you specifically
+want headless.
 
 ## Ports
 
@@ -137,10 +142,10 @@ it replaced supervisord, the bash entrypoint, and the Python web UI:
 ┌──────────────────────────────────────────────────────────────┐
 │ node dist/index.js  (PID 1, TypeScript supervisor)           │
 │                                                              │
-│  slim:   chrome (headless) ──► CDP 127.0.0.1:9222            │
+│  slim:   xvfb ─► fluxbox ─► chrome (headed) ─► CDP 127.0.0.1│
 │          cdp-proxy: 0.0.0.0:9223 ──► 127.0.0.1:9222          │
 │                                                              │
-│  record: xvfb ─► fluxbox ─► pulseaudio (as `media`, sink)    │
+│  record: xvfb ─► fluxbox (as slim) ─► pulseaudio (as `media`)│
 │          chrome (headed, DISPLAY=:99) ─► CDP as above        │
 │          x11vnc :5900, noVNC :6080                           │
 │          rec server :8080 ──► ffmpeg x11grab + pulse ─► .mkv │
@@ -179,7 +184,7 @@ it replaced supervisord, the bash entrypoint, and the Python web UI:
 | `CHROME_BIN` | `/usr/bin/google-chrome-stable` | Chrome binary. |
 | `CDP_PORT` | `9223` | External CDP port (the proxy). |
 | `CDP_INTERNAL_PORT` | `9222` | Chrome's own loopback DevTools port. |
-| `HEADFUL` | `1` in record mode | Run Chrome headed under Xvfb instead of `--headless=new`. Slim has no X stack, so headed only works in the record image. |
+| `HEADFUL` | headed (on) | Both images run headed Chrome under Xvfb. `HEADFUL=0` forces `--headless=new`. |
 | `DISPLAY` | `:99` | X display (record mode). |
 | `GEOMETRY` | `1920x1080` | Screen size / capture size (record mode). |
 | `REC_PORT` | `8080` | Recording UI port (record mode). |

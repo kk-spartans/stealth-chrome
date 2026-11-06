@@ -12,9 +12,12 @@ import { startDisplay, startVnc } from "./services/display.js";
 /**
  * Single entrypoint for both images.
  *
- *   MODE=slim   (default image)  Chrome headless + CDP only. Nothing else.
- *   MODE=record (record image)   Xvfb display + PulseAudio + VNC/noVNC +
- *                                headed Chrome + recording web UI on :8080.
+ *   MODE=slim   (default image)  Headed Chrome under Xvfb + CDP only.
+ *                                No VNC, no audio, no recording. Headed
+ *                                (not headless) because it is far less
+ *                                detectable; DISPLAY is unix-socket only.
+ *   MODE=record (record image)   Slim + PulseAudio + VNC/noVNC +
+ *                                recording web UI on :8080.
  *
  * This process is the supervisor: it starts every child, restarts them
  * when they die, runs the CDP watchdog, and shuts everything down in
@@ -53,8 +56,12 @@ async function main(): Promise<void> {
   await mkdir(config.profileDir, { recursive: true });
   importCaIfPresent(config.caFile);
 
-  if (config.mode === "record") {
+  // Both images run headed Chrome under Xvfb (unless HEADFUL=0), so the
+  // X display stack is shared. Only the record variant adds audio/VNC/rec.
+  if (config.headful) {
     children.push(...(await startDisplay(config)));
+  }
+  if (config.mode === "record") {
     children.push(await startAudio(config));
   }
 

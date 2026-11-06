@@ -26,8 +26,8 @@ services:
     restart: unless-stopped
     shm_size: 2gb
     environment:
-      # HEADFUL=1 runs Chrome headed under Xvfb — but the slim image has no
-      # X stack, so headed mode needs the record image. Leave unset here.
+      # Chrome runs headed under Xvfb in both images (less detectable than
+      # headless). HEADFUL=0 forces headless if you ever want it.
       CDP_PORT: "9223"
     ports:
       - "127.0.0.1:9223:9223"

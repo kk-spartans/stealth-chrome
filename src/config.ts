@@ -21,14 +21,18 @@ export interface Config {
   cdpPort: number;
   /** Chrome's own DevTools port — loopback only inside the container. */
   cdpInternalPort: number;
-  /** X display for the record variant, e.g. :99 */
+  /** X display for headed Chrome, e.g. :99 */
   display: string;
   /** e.g. 1920x1080 */
   geometry: string;
   recPort: number;
   vncPort: number;
   novncPort: number;
-  /** Run Chrome headed under Xvfb instead of headless. */
+  /**
+   * Run Chrome headed under Xvfb instead of headless. Headed is the
+   * default in both images — headless leaves HeadlessChrome tells in the
+   * UA and other surfaces. Set HEADFUL=0 to force headless.
+   */
   headful: boolean;
   /** Optional extra CA to import into Chrome's NSS store. */
   caFile: string | undefined;
@@ -50,7 +54,7 @@ function load(): Config {
     recPort: intEnv("REC_PORT", 8080),
     vncPort: intEnv("VNC_PORT", 5900),
     novncPort: intEnv("NOVNC_PORT", 6080),
-    headful: process.env.HEADFUL === "1" || mode === "record",
+    headful: process.env.HEADFUL !== "0",
     caFile:
       process.env.CA_FILE ??
       "/usr/local/share/ca-certificates/spartans-root.crt",

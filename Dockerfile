@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1
 # Two images from one Dockerfile:
 #
-#   --target slim    Chrome headless + CDP only. No X, no audio, no VNC,
-#                    no recording. This is the image most people want.
-#   --target record  Slim + Xvfb display + PulseAudio + ffmpeg recording
-#                    web UI + VNC/noVNC. Headed Chrome, viewable + recordable.
+#   --target slim    Headed Chrome (Xvfb) + CDP only. No audio, no VNC,
+#                    no recording. Headed, not headless, because headless
+#                    is trivially detectable. This is the image most
+#                    people want.
+#   --target record  Slim + PulseAudio + ffmpeg recording web UI +
+#                    VNC/noVNC. Viewable + recordable.
 #
 # Real branded Google Chrome (not Chromium): Google sign-in refuses
 # unbranded builds; a persistent profile logs in fine either way.
@@ -20,7 +22,7 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev
 
-# ---------- slim: Chrome + CDP, and nothing else ----------
+# ---------- slim: headed Chrome (Xvfb) + CDP, nothing else ----------
 FROM node:22-bookworm-slim AS slim
 ENV DEBIAN_FRONTEND=noninteractive \
     NODE_ENV=production \
@@ -31,6 +33,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       wget gnupg ca-certificates \
+      xvfb fluxbox \
       fonts-liberation \
       libasound2 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdbus-1-3 \
       libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 libnss3-tools \
@@ -53,7 +56,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 CMD ["node", "/app/dist/index.js"]
 
-# ---------- record: slim + display/audio/VNC/recording ----------
+# ---------- record: slim + audio/VNC/recording ----------
 FROM slim AS record
 ENV MODE=record \
     DISPLAY=:99 \
@@ -63,7 +66,7 @@ ENV MODE=record \
     NOVNC_PORT=6080
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      xvfb fluxbox x11vnc websockify novnc \
+      x11vnc websockify novnc \
       ffmpeg pulseaudio pulseaudio-utils \
     && useradd -m -s /bin/sh media \
     && ln -sf vnc.html /usr/share/novnc/index.html \

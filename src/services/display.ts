@@ -8,7 +8,9 @@ export async function startDisplay(config: Config): Promise<ManagedProcess[]> {
   const xvfb = new ManagedProcess({
     name: "xvfb",
     command: "/usr/bin/Xvfb",
-    args: [config.display, "-screen", "0", `${config.geometry}x24`],
+    // -nolisten tcp: the X server must never be reachable over TCP, only
+    // via the local unix socket — the display is not a network service.
+    args: [config.display, "-screen", "0", `${config.geometry}x24`, "-nolisten", "tcp"],
   });
   xvfb.start();
 
