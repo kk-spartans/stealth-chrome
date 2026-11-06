@@ -1,0 +1,13 @@
+node_modules/
+dist/
+
+# Browser profile — contains logins/cookies. Never commit it.
+profile/
+data/
+*.mkv
+
+# Local-only docker overrides (edge network, private CA, …)
+/docker-compose.local.yml
+
+.env
+.DS_Store

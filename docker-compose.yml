@@ -1,0 +1,66 @@
+# stealth-chrome — pull and run.
+#
+# Slim (default):
+#   docker compose up -d
+#   # CDP at http://127.0.0.1:9223/json/version
+#
+# Record variant (headed Chrome + VNC/noVNC + recording web UI on :8080,
+# VNC on :5900, noVNC on :6080):
+#   docker compose --profile record up -d chrome-record
+#
+# Images come from GHCR (built on every push by .github/workflows/build.yml):
+#   ghcr.io/kk-spartans/stealth-chrome:latest   (slim)
+#   ghcr.io/kk-spartans/stealth-chrome:record   (record)
+#
+# ⚠️  CDP is unauthenticated — anyone who can reach :9223 controls the
+# browser. The ports below bind to localhost only for that reason.
+# The ./profile volume holds the browser profile (logins/cookies);
+# it is gitignored. Delete it for a fresh browser.
+
+name: stealth-chrome
+
+services:
+  chrome:
+    image: ghcr.io/kk-spartans/stealth-chrome:latest
+    container_name: stealth-chrome
+    restart: unless-stopped
+    shm_size: 2gb
+    environment:
+      # HEADFUL=1 runs Chrome headed under Xvfb — but the slim image has no
+      # X stack, so headed mode needs the record image. Leave unset here.
+      CDP_PORT: "9223"
+    ports:
+      - "127.0.0.1:9223:9223"
+    volumes:
+      - ./profile:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9223/json/version').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Record variant. Profile-gated so a plain `docker compose up` stays slim;
+  # it shares the same profile volume, so run one or the other, not both.
+  chrome-record:
+    image: ghcr.io/kk-spartans/stealth-chrome:record
+    container_name: stealth-chrome-record
+    profiles: ["record"]
+    restart: unless-stopped
+    shm_size: 2gb
+    environment:
+      CDP_PORT: "9223"
+      REC_PORT: "8080"
+    ports:
+      - "127.0.0.1:9223:9223"
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:6080:6080"
+      - "127.0.0.1:5900:5900"
+    volumes:
+      - ./profile:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9223/json/version').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

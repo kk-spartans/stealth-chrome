@@ -1,0 +1,9 @@
+.git
+.github
+node_modules
+dist
+profile
+data
+*.mkv
+docker-compose*.yml
+README.md

@@ -1,0 +1,8 @@
+.nofail
+
+# PulseAudio user-mode config for the `media` user.
+# Exposes a TCP native protocol on 127.0.0.1:4713 (auth-anonymous) so Chrome
+# (root) and ffmpeg can connect without unix-socket permission problems, and
+# no dbus/system bus is required.
+load-module module-native-protocol-unix
+load-module module-native-protocol-tcp listen=127.0.0.1 port=4713 auth-anonymous=1
