@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { basename, join, resolve, sep } from "node:path";
 import type { Config } from "../config.js";
 import { error, log } from "../log.js";
-import { ensureSink } from "../services/audio.js";
+import { ensureSink, PULSE_SERVER } from "../services/audio.js";
 import { UI_HTML } from "./ui.js";
 
 interface RecordingState {
@@ -40,7 +40,7 @@ export function createRecordingServer(config: Config): {
   const pulseEnv = {
     ...process.env,
     HOME: "/home/media",
-    PULSE_SERVER: "tcp:127.0.0.1:4713",
+    PULSE_SERVER,
     DISPLAY: config.display,
   };
 

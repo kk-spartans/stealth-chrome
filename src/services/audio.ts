@@ -7,7 +7,12 @@ import { ManagedProcess, waitFor } from "../managed-process.js";
 const execFileAsync = promisify(execFile);
 
 const SINK_NAME = "vnc-audio";
-const PULSE_SERVER = "tcp:127.0.0.1:4713";
+/**
+ * Where every PulseAudio client (Chrome, ffmpeg, pactl) connects.
+ * Chrome MUST get this in its environment — without it Chrome has no
+ * idea the in-container PulseAudio exists and all audio is silently lost.
+ */
+export const PULSE_SERVER = "tcp:127.0.0.1:4713";
 
 /**
  * PulseAudio in user mode so Chrome's audio lands in a null sink.

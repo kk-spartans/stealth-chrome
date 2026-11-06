@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Config } from "./config.js";
 import { log, warn } from "./log.js";
 import { ManagedProcess, waitFor } from "./managed-process.js";
+import { PULSE_SERVER } from "./services/audio.js";
 
 export function chromeArgs(config: Config): string[] {
   const [width, height] = config.geometry.split("x");
@@ -12,6 +13,9 @@ export function chromeArgs(config: Config): string[] {
     "--no-first-run",
     "--no-default-browser-check",
     "--disable-default-apps",
+    // Let media/WebAudio produce sound without a prior user gesture, so
+    // recordings and the live audio stream actually contain audio.
+    "--autoplay-policy=no-user-gesture-required",
     // Chrome binds DevTools to loopback only; the TS CDP proxy forwards
     // the external port to this one (see services/cdp-proxy.ts).
     `--remote-debugging-port=${config.cdpInternalPort}`,
@@ -81,6 +85,10 @@ export function launchChrome(config: Config): {
     env: {
       ...process.env,
       ...(config.headful ? { DISPLAY: config.display } : {}),
+      // Record mode runs PulseAudio (see services/audio.ts) — Chrome needs
+      // this to find it, otherwise browser audio goes nowhere and captures
+      // / the live stream are silent.
+      ...(config.mode === "record" ? { PULSE_SERVER } : {}),
     },
     // A crashed/killed Chrome leaves SingletonLock behind and the next
     // start refuses the profile (exit 21) — clear it before every restart.
