@@ -1,4 +1,4 @@
-import { existsSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import type { Config } from "./config.js";
 import { log, warn } from "./log.js";
@@ -58,8 +58,15 @@ export async function waitForCdp(config: Config, timeoutMs = 60_000): Promise<vo
  */
 function clearStaleLocks(profileDir: string): void {
   for (const stale of ["SingletonLock", "SingletonCookie", "SingletonSocket"]) {
-    const target = join(profileDir, stale);
-    if (existsSync(target)) rmSync(target, { force: true });
+    // No existsSync() guard: Singleton* are symlinks to hostnames/pids or
+    // /tmp paths that are gone in a fresh container, i.e. dangling links —
+    // existsSync() follows them and reports false, so the stale lock would
+    // never actually be removed. rmSync with force handles all cases.
+    try {
+      rmSync(join(profileDir, stale), { force: true });
+    } catch {
+      /* best effort */
+    }
   }
 }
 
