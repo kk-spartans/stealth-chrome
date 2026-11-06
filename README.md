@@ -69,7 +69,7 @@ the record image runs it **headed** under Xvfb so you can see/record it.
 
 | Port | What it is | Notes |
 |------|------------|-------|
-| **9223** | Chrome DevTools Protocol (CDP) — external | The port to publish/use. `GET /json/version`, `/json/list`, and the `webSocketDebuggerUrl` endpoints. A tiny TypeScript TCP proxy inside the container forwards 9223 → Chrome's own loopback port. |
+| **9223** | Chrome DevTools Protocol (CDP) — external | The port to publish/use. `GET /json/version`, `/json/list`, and the `webSocketDebuggerUrl` endpoints. An HTTP-aware TypeScript proxy inside the container forwards 9223 → Chrome's own loopback port, rewriting `Host` to loopback on every request (Chrome rejects non-local hosts with 500) and the debugger URL in `/json/*` responses back to the caller's host — so CDP works through a hostname/gateway, not just `127.0.0.1`. |
 | 9222 | Chrome's DevTools, container-loopback only | Chrome binds DevTools to `127.0.0.1` only (it ignores `--remote-debugging-address=0.0.0.0` in current versions), so publishing 9222 directly does nothing — that's exactly why the 9223 proxy exists. Don't publish 9222. |
 
 So from the host (with the compose mapping above):
@@ -215,7 +215,7 @@ src/
   chrome.ts                 Chrome launch + CDP watchdog
   ca.ts                     optional CA import into Chrome's NSS store
   services/
-    cdp-proxy.ts            9223 -> 9222 TCP forwarder (replaces socat)
+    cdp-proxy.ts            9223 -> 9222 HTTP proxy, Host rewritten to loopback (replaces socat)
     display.ts              Xvfb + fluxbox + x11vnc + noVNC
     audio.ts                PulseAudio (as `media`) + vnc-audio sink
   rec/
